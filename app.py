@@ -48,8 +48,12 @@ with st.sidebar:
     ornek = st.toggle("Örnek veriyi kullan", key="ornek")
     dosya = st.file_uploader("CSV dosyanı seç", type=["csv", "tsv"], disabled=ornek, key="dosya", help="İlk satır sütun başlıkları olmalı.")
     with st.expander("Okuma ayarları"):
-        ayrac_adi = st.selectbox("Sütun ayıracı", ["Otomatik", "Virgül", "Noktalı virgül", "Sekme", "Dikey çizgi"], key="okuma_ayrac")
-        kodlama = st.selectbox("Dosya kodlaması", ["Otomatik", "utf-8-sig", "cp1254", "utf-16"], key="okuma_kodlama")
+        if ornek:
+            st.caption("Örnek veri UTF-8 kodlaması ve virgül ayıracıyla okunur.")
+            ayrac_adi, kodlama = "Virgül", "utf-8-sig"
+        else:
+            ayrac_adi = st.selectbox("Sütun ayıracı", ["Otomatik", "Virgül", "Noktalı virgül", "Sekme", "Dikey çizgi"], key="okuma_ayrac")
+            kodlama = st.selectbox("Dosya kodlaması", ["Otomatik", "utf-8-sig", "cp1254", "utf-16"], key="okuma_kodlama")
     st.caption("CSV / TSV · En fazla 10 MB, 100.000 satır, 150 sütun.")
 
 if ornek:
@@ -74,7 +78,7 @@ else:
     st.stop()
 
 ayrac = {"Otomatik": "Otomatik", "Virgül": ",", "Noktalı virgül": ";", "Sekme": "\t", "Dikey çizgi": "|"}[ayrac_adi]
-kimlik = sha256(veri + str((ayrac, kodlama)).encode()).hexdigest()
+kimlik = sha256(veri + str((ayrac, kodlama, ornek)).encode()).hexdigest()
 if st.session_state.get("kaynak_kimligi") != kimlik:
     try:
         orijinal, okuma_bilgisi = csv_oku(veri, ayrac=ayrac, kodlama=kodlama)
@@ -92,6 +96,10 @@ if st.session_state.get("kaynak_kimligi") != kimlik:
 orijinal = st.session_state.orijinal
 sutunlar = orijinal.columns.tolist()
 form_kimligi = f"{kimlik[:12]}_{st.session_state.get('form_surum', 0)}"
+varsayilan_sayilar = [ad for ad in ["tutar"] if ornek and ad in sutunlar]
+varsayilan_tarihler = [ad for ad in ["tarih"] if ornek and ad in sutunlar]
+varsayilan_tekrarlar = [ad for ad in ["islem_id"] if ornek and ad in sutunlar]
+varsayilan_eksikler = [ad for ad in ["tarih", "tutar"] if ornek and ad in sutunlar]
 
 # 2. Temizleme kuralları. Form gönderilene kadar veri değişmez.
 with st.sidebar:
@@ -101,18 +109,18 @@ with st.sidebar:
     with st.form(f"temizleme_formu_{form_kimligi}"):
         with st.expander("Metin ve veri tipleri"):
             bosluk = st.checkbox("Metinlerin kenar boşluklarını temizle", value=True, key=f"k_bosluk_{form_kimligi}")
-            sayilar = st.multiselect("Sayıya çevir", sutunlar, default=["tutar"] if ornek else [], key=f"k_sayilar_{form_kimligi}")
+            sayilar = st.multiselect("Sayıya çevir", sutunlar, default=varsayilan_sayilar, key=f"k_sayilar_{form_kimligi}")
             ondalik = st.selectbox("Ondalık ayıracı", [".", ","], key=f"k_ondalik_{form_kimligi}")
             binlik_adi = st.selectbox("Binlik ayıracı", ["Yok", ".", ","], key=f"k_binlik_{form_kimligi}")
-            tarihler = st.multiselect("Tarihe çevir", sutunlar, default=["tarih"] if ornek else [], key=f"k_tarihler_{form_kimligi}")
+            tarihler = st.multiselect("Tarihe çevir", sutunlar, default=varsayilan_tarihler, key=f"k_tarihler_{form_kimligi}")
             tarih_bicimi = st.selectbox("Tarih biçimi", ["%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"], key=f"k_tarih_bicimi_{form_kimligi}")
         with st.expander("Tekrarlı kayıtlar"):
-            tekrar_sil = st.checkbox("Tekrarlı kayıtları çıkar", value=ornek, key=f"k_tekrar_sil_{form_kimligi}")
-            tekrar_sutunlar = st.multiselect("Tekrarı belirleyen sütunlar", sutunlar, default=["islem_id"] if ornek else [], key=f"k_tekrar_sutunlar_{form_kimligi}", help="Boş bırakırsan bütün sütunlar birlikte karşılaştırılır.")
+            tekrar_sil = st.checkbox("Tekrarlı kayıtları çıkar", value=bool(varsayilan_tekrarlar), key=f"k_tekrar_sil_{form_kimligi}")
+            tekrar_sutunlar = st.multiselect("Tekrarı belirleyen sütunlar", sutunlar, default=varsayilan_tekrarlar, key=f"k_tekrar_sutunlar_{form_kimligi}", help="Boş bırakırsan bütün sütunlar birlikte karşılaştırılır.")
             tekrar_tut = st.selectbox("Tekrarda tutulacak kayıt", ["İlk kayıt", "Son kayıt"], key=f"k_tekrar_tut_{form_kimligi}")
         with st.expander("Eksik değerler"):
-            eksik_yontem_adi = st.selectbox("Eksik değerlere uygulanacak işlem", ["Koru", "Satırı çıkar", "Medyanla doldur", "Sabit değerle doldur"], index=1 if ornek else 0, key=f"k_eksik_yontem_{form_kimligi}")
-            eksik_sutunlar = st.multiselect("Eksik işlemine dahil sütunlar", sutunlar, default=["tarih", "tutar"] if ornek else [], key=f"k_eksik_sutunlar_{form_kimligi}")
+            eksik_yontem_adi = st.selectbox("Eksik değerlere uygulanacak işlem", ["Koru", "Satırı çıkar", "Medyanla doldur", "Sabit değerle doldur"], index=1 if varsayilan_eksikler else 0, key=f"k_eksik_yontem_{form_kimligi}")
+            eksik_sutunlar = st.multiselect("Eksik işlemine dahil sütunlar", sutunlar, default=varsayilan_eksikler, key=f"k_eksik_sutunlar_{form_kimligi}")
             sabit = st.text_input("Sabit doldurma değeri", key=f"k_sabit_{form_kimligi}", help="Yalnızca 'Sabit değerle doldur' seçeneğinde kullanılır.")
         uygula = st.form_submit_button("Temizliği uygula", type="primary", width="stretch", key=f"uygula_{form_kimligi}")
 
