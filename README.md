@@ -1,6 +1,10 @@
 # CSV Analyzer
 
-A local Streamlit application for inspecting, cleaning, filtering, and summarizing CSV data with pandas. The interface and learning comments are in Turkish.
+A Streamlit application for inspecting, cleaning, filtering, and summarizing CSV data with pandas. The interface and learning comments are in Turkish.
+
+[Try the app](https://csv-analyzer-dgof7mdkpswkmyehattrny.streamlit.app/) · [pandas study notebook](https://github.com/yag1zkarag0z/PANDAS)
+
+To try it without uploading a file, turn on **Örnek veriyi kullan** and click **Temizliği uygula**.
 
 ## Features
 
